@@ -68,18 +68,28 @@ defmodule Clickhousex.HTTPClient do
   end
 
   def request(conn, query, request, timeout, username, password, database) do
-    opts = [basic_auth: {username, password}, timeout: timeout, recv_timeout: timeout]
+    opts = [auth_params: {username, password}, timeout: timeout, recv_timeout: timeout]
     post(conn, query, request, database, opts)
   end
 
   defp post(conn, query, request, database, opts) do
     {recv_timeout, opts} = Keyword.pop(opts, :recv_timeout, 5000)
 
-    query_string =
-      URI.encode_query(%{
-        database: database,
-        query: IO.iodata_to_binary(request.query_string_data)
-      })
+    query_opts = %{
+      database: database,
+      query: IO.iodata_to_binary(request.query_string_data)
+    }
+
+    query_opts =
+      case Keyword.get(opts, :auth_params) do
+        nil ->
+          query_opts
+
+        {username, password} ->
+          %{user: username, password: password} |> Map.merge(query_opts)
+      end
+
+    query_string = URI.encode_query(query_opts)
 
     path = "/?#{query_string}"
     post_body = maybe_append_format(query, request)
@@ -109,20 +119,9 @@ defmodule Clickhousex.HTTPClient do
     end
   end
 
-  defp headers(opts, post_iodata) do
-    headers =
-      case Keyword.get(opts, :basic_auth) do
-        {username, password} ->
-          auth_user = {"X-ClickHouse-User", username}
-          auth_pass = {"X-ClickHouse-Password", password}
-          [auth_user, auth_pass | @req_headers]
-
-        nil ->
-          @req_headers
-      end
-
+  defp headers(_opts, post_iodata) do
     content_length = post_iodata |> IO.iodata_length() |> Integer.to_string()
-    [{"content-length", content_length} | headers]
+    [{"content-length", content_length} | @req_headers]
   end
 
   defp receive_response(conn, _recv_timeout, %Response{complete?: true} = response) do
