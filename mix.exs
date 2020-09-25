@@ -28,7 +28,7 @@ defmodule Clickhousex.Mixfile do
       # When they release, bump this to the released version
       {:mint, "~> 1.0"},
       {:castore, "~> 0.1"},
-      {:jason, "~> 1.1.2"},
+      {:jason, "~> 1.2"},
       {:ex_doc, "~> 0.19", only: :dev},
       {:benchee, "~> 0.14.0", only: [:dev, :test]}
     ]
